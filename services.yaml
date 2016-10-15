@@ -1,0 +1,22 @@
+logger:
+  path: logger
+
+eventBus:
+  path: eventBus
+
+mq:
+  path: mq
+  inject:
+    - logger
+
+gmkcompile:
+  path: gmkcompile
+  inject:
+    - mq
+    - logger
+
+gmkmatch:
+  path: gmkmatch
+  inject:
+    - mq
+    - logger

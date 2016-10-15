@@ -1,5 +1,5 @@
 # Logs
-logs
+logs/*
 *.log
 npm-debug.log*
 
@@ -35,3 +35,23 @@ jspm_packages
 
 # Optional REPL history
 .node_repl_history
+
+# Debug flag file
+.debug
+
+# Config files
+config.debug.yaml
+config.production.yaml
+
+# Compiled sources
+.gulp-cache
+.dist/
+
+# Sublime Project
+*.sublime-*
+
+# Sublime FTP Credential
+sftp-config.json
+
+# keep
+!.gitkeep
