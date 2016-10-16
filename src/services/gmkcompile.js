@@ -1,5 +1,4 @@
 import { argv } from 'yargs';
-import _ from 'lodash';
 import format from 'string-format';
 import path from 'path';
 import fsp from 'fs-promise';
@@ -18,31 +17,37 @@ export default async (mq, logger) => {
     return;
   }
 
-  const LIMITS = await api.getLimits();
-  const { LIMIT_SIZE_TEXT, LIMIT_SIZE_EXECUTABLE } = LIMITS;
+  const runtimeDir = path.resolve(DI.config.runtimeDirectory);
+  await fsp.ensureDir(runtimeDir);
 
-  logger.info('Received limits from API server', LIMITS);
+  const enableSandbox = DI.config.sandbox !== null;
 
   async function handleCompileTask(task) {
-    const submission = await api.compileBegin(task);
-
     try {
-      const workingDirectory = path.resolve(format(DI.config.compile.workingDirectory, submission));
-      const source = format(DI.config.compile.source, submission);
-      const target = format(DI.config.compile.target, submission);
-      const sandbox = DI.config.sandbox === null ? null : path.resolve(DI.config.sandbox);
-      const sandboxArgs = DI.config.sandbox === null ? null : DI.config.compile.sandbox;
-      const compileCmd = format(DI.config.compile.command, { ...submission, source, target });
+      const submission = await api.compileBegin(task.sdocid, task.token);
+      const compileConfig = { ...DI.config.compile };
+      const formatArgv = { compileConfig, submission };
+      compileConfig.source = path.join(runtimeDir, format(compileConfig.source, formatArgv));
+      compileConfig.target = path.join(runtimeDir, format(compileConfig.target, formatArgv));
+      compileConfig.command = format(compileConfig.command, formatArgv);
 
-      await fsp.ensureDir(workingDirectory);
-      await fsp.writeFile(path.join(workingDirectory, source), submission.code);
+      await fsp.ensureDir(path.dirname(compileConfig.source));
+      await fsp.ensureDir(path.dirname(compileConfig.target));
+      await fsp.writeFile(compileConfig.source, submission.code);
+
+      const execCommands = [];
+      if (enableSandbox) {
+        execCommands.push(DI.config.sandbox);
+        execCommands.push(compileConfig.sandboxArgv);
+      }
+      execCommands.push(compileConfig.command);
 
       let success, stdout, stderr;
 
       try {
-        const execResult = await exec(_.filter([sandbox, sandboxArgs, compileCmd]).join(' '), {
-          cwd: workingDirectory,
-          timeout: DI.config.compile.timeout,
+        const execResult = await exec(execCommands.join(' '), {
+          cwd: runtimeDir,
+          timeout: compileConfig.timeout,
           maxBuffer: 1 * 1024 * 1024,
         });
         stdout = execResult.stdout;
@@ -54,23 +59,23 @@ export default async (mq, logger) => {
         success = false;
       }
       let text = (stdout + '\n' + stderr).trim();
-      if (text.length > LIMIT_SIZE_TEXT) {
-        text = text.substr(0, LIMIT_SIZE_TEXT) + '...';
+      if (text.length > task.limits.sizeOfText) {
+        text = text.substr(0, task.limits.sizeOfText) + '...';
       }
+
       let binaryBuffer = null;
       if (success) {
-        const fp = path.join(workingDirectory, target);
-        const stat = await fsp.stat(fp);
-        if (stat.size > LIMIT_SIZE_EXECUTABLE) {
+        const stat = await fsp.stat(compileConfig.target);
+        if (stat.size > task.limits.sizeOfBin) {
           text = 'Compile succeeded but binary limit exceeded';
           success = false;
         } else {
-          binaryBuffer = await lzma.compress(await fsp.readFile(fp), LZMA_COMPRESS_OPTIONS);
+          binaryBuffer = await lzma.compress(await fsp.readFile(compileConfig.target), LZMA_COMPRESS_OPTIONS);
         }
       }
-      await api.compileEnd(task, text, success, binaryBuffer);
+      await api.compileEnd(task.sdocid, task.token, text, success, binaryBuffer);
     } catch (err) {
-      await api.compileError(task, `System internal error occured when compiling this submission.\n\n${err.stack}`);
+      await api.compileError(task.sdocid, task.token, `System internal error occured when compiling this submission.\n\n${err.stack}`);
       throw err;
     }
   }

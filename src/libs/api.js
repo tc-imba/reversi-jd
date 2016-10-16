@@ -30,20 +30,21 @@ async function requestAsync(actionUrl, options = {}) {
   return body;
 }
 
-api.getLimits = () => {
+api.getSubmissionLimits = () => {
   return requestAsync('/submission/api/limits', { method: 'GET' });
 };
 
-api.compileBegin = (task) => {
+api.compileBegin = (id, token) => {
   return requestAsync('/submission/api/compileBegin', {
     method: 'POST',
-    body: task,
+    body: { id, token },
   });
 };
 
-api.compileEnd = (task, text, success, lzmaBuffer) => {
+api.compileEnd = (id, token, text, success, lzmaBuffer) => {
   const body = {
-    ...task,
+    id,
+    token,
     text,
     success: String(success),
   };
@@ -51,7 +52,7 @@ api.compileEnd = (task, text, success, lzmaBuffer) => {
     body.binary = {
       value: lzmaBuffer,
       options: {
-        filename: task.id,
+        filename: id,
         contentType: 'application/x-xz',
       },
     };
@@ -62,10 +63,10 @@ api.compileEnd = (task, text, success, lzmaBuffer) => {
   });
 };
 
-api.compileError = (task, text) => {
+api.compileError = (id, token, text) => {
   return requestAsync('/submission/api/compileError', {
     method: 'POST',
-    body: { ...task, text },
+    body: { id, token, text },
   });
 };
 
