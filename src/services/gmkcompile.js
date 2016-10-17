@@ -1,9 +1,9 @@
 import { argv } from 'yargs';
+import { exec } from 'child-process-promise';
 import format from 'string-format';
 import path from 'path';
 import fsp from 'fs-promise';
 import lzma from 'lzma-native';
-import { exec } from 'child-process-promise';
 import api from 'libs/api';
 
 const LZMA_COMPRESS_OPTIONS = {

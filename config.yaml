@@ -19,9 +19,6 @@ base:
     config: match/{task.mdocid}/{task.rid}/config.json
     command: node ../../fun-judge/.dist/bootstrap.js --config {matchConfig.config}
   mq:
-    defaults:
-      subscriptions:
-        prefetch: 1
     vhosts:
       /:
         connection:
@@ -34,5 +31,7 @@ base:
         subscriptions:
           compile:
             queue: gomoku_compile
+            prefetch: 1
           judge:
             queue: gomoku_judge
+            prefetch: 4  # set to number of CPUs - 1
