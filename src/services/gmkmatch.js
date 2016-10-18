@@ -29,7 +29,6 @@ export default async (mq, logger) => {
       matchConfig.s2bin = path.join(runtimeDir, format(matchConfig.s2bin, formatArgv));
       matchConfig.map = path.join(runtimeDir, format(matchConfig.map, formatArgv));
       matchConfig.config = path.join(runtimeDir, format(matchConfig.config, formatArgv));
-      matchConfig.command = path.join(runtimeDir, format(matchConfig.command, formatArgv));
 
       await fsp.ensureDir(path.dirname(matchConfig.s1bin));
       await fsp.writeFile(matchConfig.s1bin, await lzma.decompress(await api.getSubmissionBinary(task.s1docid), LZMA_DECOMPRESS_OPTIONS));
@@ -58,7 +57,23 @@ export default async (mq, logger) => {
         'winningStones': task.rules.winningStones,
       }, null, 2));
 
-      await api.roundError(task.mdocid, task.rid, `Not implemented`);
+      let success, stdout, stderr, code = 0;
+      try {
+        const execResult = await exec(matchConfig.command, {
+          cwd: runtimeDir,
+          maxBuffer: 10 * 1024 * 1024,
+        });
+        stdout = execResult.stdout;
+        stderr = execResult.stderr;
+      } catch (err) {
+        stdout = err.stdout;
+        stderr = err.stderr;
+        code = err.code;
+      }
+      if (code < 1 || code > 4) {
+        throw new Error(`Unexpected judge exit code ${code}. ${stderr}`);
+      }
+      await api.roundComplete(task.mdocid, task.rid, code, stdout);
     } catch (err) {
       await api.roundError(task.mdocid, task.rid, `System internal error occured when judging this round.\n\n${err.stack}`);
       throw err;

@@ -47,7 +47,7 @@ async function requestBinaryAsync(actionUrl, options = {}) {
     try {
       body = JSON.parse(resp.body.toString());
     } catch (err) {
-      throw new Error(`Portal API request failed: Cannot decode error message from server`);
+      throw new Error('Portal API request failed: Cannot decode error message from server');
     }
     throw new Error(`Portal API request failed: ${body.name}: ${body.msg}`);
   }
