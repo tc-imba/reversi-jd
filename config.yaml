@@ -17,7 +17,7 @@ base:
     s2bin: match/{task.mdocid}/{task.rid}/{task.s2docid}.exe
     map: match/{task.mdocid}/{task.rid}/map.json
     config: match/{task.mdocid}/{task.rid}/config.json
-    command: node ../../fun-judge/.dist/bootstrap.js --config {matchConfig.config}
+    command: node ../fun-judge/.dist/bootstrap.js --config {matchConfig.config}
   mq:
     vhosts:
       /:

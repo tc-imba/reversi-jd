@@ -10,6 +10,9 @@ const LZMA_DECOMPRESS_OPTIONS = {
   threads: 1,
 };
 
+const EXITCODE_MIN = 33;
+const EXITCODE_MAX = EXITCODE_MIN + 3;
+
 export default async (mq, logger) => {
 
   if (argv.role !== 'match') {
@@ -29,12 +32,21 @@ export default async (mq, logger) => {
       matchConfig.s2bin = path.join(runtimeDir, format(matchConfig.s2bin, formatArgv));
       matchConfig.map = path.join(runtimeDir, format(matchConfig.map, formatArgv));
       matchConfig.config = path.join(runtimeDir, format(matchConfig.config, formatArgv));
+      matchConfig.command = format(matchConfig.command, formatArgv);
 
       await fsp.ensureDir(path.dirname(matchConfig.s1bin));
-      await fsp.writeFile(matchConfig.s1bin, await lzma.decompress(await api.getSubmissionBinary(task.s1docid), LZMA_DECOMPRESS_OPTIONS));
+      await fsp.writeFile(
+        matchConfig.s1bin,
+        await lzma.decompress(await api.getSubmissionBinary(task.s1docid), LZMA_DECOMPRESS_OPTIONS),
+        { mode: 0o755 }
+      );
 
       await fsp.ensureDir(path.dirname(matchConfig.s2bin));
-      await fsp.writeFile(matchConfig.s2bin, await lzma.decompress(await api.getSubmissionBinary(task.s2docid), LZMA_DECOMPRESS_OPTIONS));
+      await fsp.writeFile(
+        matchConfig.s2bin,
+        await lzma.decompress(await api.getSubmissionBinary(task.s2docid), LZMA_DECOMPRESS_OPTIONS),
+        { mode: 0o755 }
+      );
 
       await fsp.ensureDir(path.dirname(matchConfig.map));
       await fsp.writeFile(matchConfig.map, task.map);
@@ -57,7 +69,7 @@ export default async (mq, logger) => {
         'winningStones': task.rules.winningStones,
       }, null, 2));
 
-      let success, stdout, stderr, code = 0;
+      let stdout, stderr, code = 0;
       try {
         const execResult = await exec(matchConfig.command, {
           cwd: runtimeDir,
@@ -70,9 +82,12 @@ export default async (mq, logger) => {
         stderr = err.stderr;
         code = err.code;
       }
-      if (code < 1 || code > 4) {
+
+      if (code < EXITCODE_MIN || code > EXITCODE_MAX) {
         throw new Error(`Unexpected judge exit code ${code}. ${stderr}`);
       }
+
+      logger.info('Match %s (round %s) complete', task.mdocid, task.rid);
       await api.roundComplete(task.mdocid, task.rid, code, stdout);
     } catch (err) {
       await api.roundError(task.mdocid, task.rid, `System internal error occured when judging this round.\n\n${err.stack}`);
@@ -84,7 +99,7 @@ export default async (mq, logger) => {
     if (err) throw err;
     subscription.on('error', err => logger.error(err));
     subscription.on('message', async (message, task, ackOrNack) => {
-      logger.info('Match', task);
+      logger.info('Match %s (round %s): %s', task.mdocid, task.rid, JSON.stringify(task));
       try {
         await handleJudgeTask(task);
       } catch (e) {

@@ -73,6 +73,7 @@ export default async (mq, logger) => {
           binaryBuffer = await lzma.compress(await fsp.readFile(compileConfig.target), LZMA_COMPRESS_OPTIONS);
         }
       }
+      logger.info('Compile %s end (success = %s)', task.sdocid, success);
       await api.compileEnd(task.sdocid, task.token, text, success, binaryBuffer);
     } catch (err) {
       await api.compileError(task.sdocid, task.token, `System internal error occured when compiling this submission.\n\n${err.stack}`);
@@ -84,7 +85,7 @@ export default async (mq, logger) => {
     if (err) throw err;
     subscription.on('error', err => logger.error(err));
     subscription.on('message', async (message, task, ackOrNack) => {
-      logger.info('Compile', task);
+      logger.info('Compile %s: %s', task.sdocid, JSON.stringify(task));
       try {
         await handleCompileTask(task);
       } catch (e) {
