@@ -24,7 +24,7 @@ global.__projectRoot = path.join(__dirname, '..');
     return;
   }
 
-  process.title = 'GomokuJudge';
+  process.title = `GomokuJD_${argv.role}`;
 
   let envProfile = 'debug';
   try {

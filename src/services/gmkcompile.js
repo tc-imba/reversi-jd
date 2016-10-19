@@ -37,7 +37,7 @@ export default async (mq, logger) => {
 
       const execCommands = [];
       if (enableSandbox) {
-        execCommands.push(DI.config.sandbox);
+        execCommands.push(path.resolve(DI.config.sandbox));
         execCommands.push(compileConfig.sandboxArgv);
       }
       execCommands.push(compileConfig.command);

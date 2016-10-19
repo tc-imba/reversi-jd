@@ -7,6 +7,7 @@
   "scripts": {
     "jd:compile": "node .dist/jd.js --role compile",
     "jd:match": "node .dist/jd.js --role match",
+    "jd:match:affinity": "start /affinity 1 node .dist/jd.js --role match",
     "build:compile": "gulp clean && gulp jd --role compile",
     "build:match": "gulp clean && gulp jd --role match",
     "watch:compile": "gulp clean && gulp --role compile",
