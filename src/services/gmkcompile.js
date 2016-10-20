@@ -1,5 +1,5 @@
 import { argv } from 'yargs';
-import { exec } from 'child-process-promise';
+import { execFile } from 'child-process-promise';
 import path from 'path';
 import del from 'del';
 import fsp from 'fs-promise';
@@ -30,7 +30,7 @@ export default async (mq, logger) => {
       const formatArgv = { runtimeDir, compileConfig, submission };
 
       // ensure order
-      for (const key of ['source', 'target', 'clean', 'command']) {
+      for (const key of ['source', 'target', 'clean', 'command', 'args']) {
         compileConfig[key] = utils.formatDeep(compileConfig[key], formatArgv);
       }
 
@@ -38,17 +38,23 @@ export default async (mq, logger) => {
       await fsp.ensureDir(path.dirname(compileConfig.target));
       await fsp.writeFile(compileConfig.source, submission.code);
 
-      const execCommands = [];
+      let execOptFile, execOptArgs;
       if (enableSandbox) {
-        execCommands.push(path.resolve(DI.config.sandbox));
-        execCommands.push(compileConfig.sandboxArgv);
+        execOptFile = path.resolve(DI.config.sandbox);
+        execOptArgs = [
+          ...utils.parseArgs(compileConfig.sandboxArgs),
+          compileConfig.command,
+          ...utils.parseArgs(compileConfig.args),
+        ];
+      } else {
+        execOptFile = compileConfig.command;
+        execOptArgs = utils.parseArgs(compileConfig.args);
       }
-      execCommands.push(compileConfig.command);
 
       let success, stdout, stderr;
 
       try {
-        const execResult = await exec(execCommands.join(' '), {
+        const execResult = await execFile(execOptFile, execOptArgs, {
           cwd: runtimeDir,
           timeout: compileConfig.timeout,
           maxBuffer: 1 * 1024 * 1024,
@@ -58,7 +64,7 @@ export default async (mq, logger) => {
         success = true;
       } catch (err) {
         stdout = err.stdout;
-        stderr = err.stderr;
+        stderr = err.message;
         success = false;
       }
       let text = (stdout + '\n' + stderr).trim();

@@ -13,8 +13,9 @@ base:
     clean:
       - '{compileConfig.source}'
       - '{compileConfig.target}'
-    command: gcc -O2 -s -Wall -std=c11 -o "{compileConfig.target}" "{compileConfig.source}" -lm -Wl,--stack=134217728
-    sandboxArgv: --use-logon
+    command: gcc
+    args: -O2 -s -Wall -std=c11 -o "{compileConfig.target}" "{compileConfig.source}" -lm -Wl,--stack=134217728
+    sandboxArgs: --use-logon
   match:
     s1bin: '{runtimeDir}/match/{task.mdocid}/{task.rid}/{task.s1docid}.exe'
     s2bin: '{runtimeDir}/match/{task.mdocid}/{task.rid}/{task.s2docid}.exe'
@@ -23,7 +24,8 @@ base:
     summary: '{runtimeDir}/match/{task.mdocid}/{task.rid}/summary.json'
     clean:
       - '{runtimeDir}/match/{task.mdocid}/{task.rid}/**'
-    command: node ../fun-judge/.dist/bootstrap.js --config "{matchConfig.config}"
+    command: node
+    args: ../fun-judge/.dist/bootstrap.js --config "{matchConfig.config}"
   mq:
     vhosts:
       /:
@@ -40,4 +42,4 @@ base:
             prefetch: 1
           judge:
             queue: gomoku_judge
-            prefetch: 4  # set to number of CPUs - 1
+            prefetch: 4  # set to number of CPUs / 2 - 1

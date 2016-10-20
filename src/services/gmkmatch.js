@@ -1,5 +1,5 @@
 import { argv } from 'yargs';
-import { exec } from 'child-process-promise';
+import { execFile } from 'child-process-promise';
 import path from 'path';
 import del from 'del';
 import fsp from 'fs-promise';
@@ -31,7 +31,7 @@ export default async (mq, logger) => {
       const formatArgv = { runtimeDir, matchConfig, task };
       
       // ensure order
-      for (const key of ['s1bin', 's2bin', 'map', 'config', 'summary', 'clean', 'command']) {
+      for (const key of ['s1bin', 's2bin', 'map', 'config', 'summary', 'clean', 'command', 'args']) {
         matchConfig[key] = utils.formatDeep(matchConfig[key], formatArgv);
       }
 
@@ -73,7 +73,7 @@ export default async (mq, logger) => {
 
       let stdout, stderr, code = 0;
       try {
-        const execResult = await exec(matchConfig.command, {
+        const execResult = await execFile(matchConfig.command, utils.parseArgs(matchConfig.args), {
           cwd: runtimeDir,
           maxBuffer: 10 * 1024 * 1024,
         });
