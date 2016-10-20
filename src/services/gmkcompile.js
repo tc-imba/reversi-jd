@@ -1,10 +1,11 @@
 import { argv } from 'yargs';
 import { exec } from 'child-process-promise';
-import format from 'string-format';
 import path from 'path';
+import del from 'del';
 import fsp from 'fs-promise';
 import lzma from 'lzma-native';
 import api from 'libs/api';
+import utils from 'libs/utils';
 
 const LZMA_COMPRESS_OPTIONS = {
   preset: 4,
@@ -26,10 +27,12 @@ export default async (mq, logger) => {
     try {
       const submission = await api.compileBegin(task.sdocid, task.token);
       const compileConfig = { ...DI.config.compile };
-      const formatArgv = { compileConfig, submission };
-      compileConfig.source = path.join(runtimeDir, format(compileConfig.source, formatArgv));
-      compileConfig.target = path.join(runtimeDir, format(compileConfig.target, formatArgv));
-      compileConfig.command = format(compileConfig.command, formatArgv);
+      const formatArgv = { runtimeDir, compileConfig, submission };
+
+      // ensure order
+      for (const key of ['source', 'target', 'clean', 'command']) {
+        compileConfig[key] = utils.formatDeep(compileConfig[key], formatArgv);
+      }
 
       await fsp.ensureDir(path.dirname(compileConfig.source));
       await fsp.ensureDir(path.dirname(compileConfig.target));
@@ -73,8 +76,16 @@ export default async (mq, logger) => {
           binaryBuffer = await lzma.compress(await fsp.readFile(compileConfig.target), LZMA_COMPRESS_OPTIONS);
         }
       }
+
       logger.info('Compile %s end (success = %s)', task.sdocid, success);
       await api.compileEnd(task.sdocid, task.token, text, success, binaryBuffer);
+
+      try {
+        await del(compileConfig.clean, { force: true });
+      } catch (e) {
+        logger.error(e);
+      }
+
     } catch (err) {
       await api.compileError(task.sdocid, task.token, `System internal error occured when compiling this submission.\n\n${err.stack}`);
       throw err;

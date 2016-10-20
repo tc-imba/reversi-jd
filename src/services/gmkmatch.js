@@ -1,10 +1,11 @@
 import { argv } from 'yargs';
 import { exec } from 'child-process-promise';
-import format from 'string-format';
 import path from 'path';
+import del from 'del';
 import fsp from 'fs-promise';
 import lzma from 'lzma-native';
 import api from 'libs/api';
+import utils from 'libs/utils';
 
 const LZMA_DECOMPRESS_OPTIONS = {
   threads: 1,
@@ -27,12 +28,12 @@ export default async (mq, logger) => {
       await api.roundBegin(task.mdocid, task.rid);
 
       const matchConfig = { ...DI.config.match };
-      const formatArgv = { matchConfig, task };
-      matchConfig.s1bin = path.join(runtimeDir, format(matchConfig.s1bin, formatArgv));
-      matchConfig.s2bin = path.join(runtimeDir, format(matchConfig.s2bin, formatArgv));
-      matchConfig.map = path.join(runtimeDir, format(matchConfig.map, formatArgv));
-      matchConfig.config = path.join(runtimeDir, format(matchConfig.config, formatArgv));
-      matchConfig.command = format(matchConfig.command, formatArgv);
+      const formatArgv = { runtimeDir, matchConfig, task };
+      
+      // ensure order
+      for (const key of ['s1bin', 's2bin', 'map', 'config', 'summary', 'clean', 'command']) {
+        matchConfig[key] = utils.formatDeep(matchConfig[key], formatArgv);
+      }
 
       await fsp.ensureDir(path.dirname(matchConfig.s1bin));
       await fsp.writeFile(
@@ -54,6 +55,7 @@ export default async (mq, logger) => {
       await fsp.ensureDir(path.dirname(matchConfig.config));
       await fsp.writeFile(matchConfig.config, JSON.stringify({
         'sandbox': DI.config.sandbox === null ? null : path.resolve(DI.config.sandbox),
+        'summary': matchConfig.summary,
         'board': matchConfig.map,
         'brain0.field': task.u1field,
         'brain0.bin': matchConfig.s1bin,
@@ -89,6 +91,13 @@ export default async (mq, logger) => {
 
       logger.info('Match %s (round %s) complete', task.mdocid, task.rid);
       await api.roundComplete(task.mdocid, task.rid, code, stdout);
+
+      try {
+        await del(matchConfig.clean, { force: true });
+      } catch (e) {
+        logger.error(e);
+      }
+
     } catch (err) {
       await api.roundError(task.mdocid, task.rid, `System internal error occured when judging this round.\n\n${err.stack}`);
       throw err;

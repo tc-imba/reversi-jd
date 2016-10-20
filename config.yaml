@@ -8,16 +8,22 @@ base:
   runtimeDirectory: ../runtime
   compile:
     timeout: 20000
-    source: compile/{submission.user.userName}/{submission._id}.c
-    target: compile/{submission.user.userName}/{submission._id}.exe
+    source: '{runtimeDir}/compile/{submission.user.userName}/{submission._id}.c'
+    target: '{runtimeDir}/compile/{submission.user.userName}/{submission._id}.exe'
+    clean:
+      - '{compileConfig.source}'
+      - '{compileConfig.target}'
     command: gcc -O2 -s -Wall -std=c11 -o "{compileConfig.target}" "{compileConfig.source}" -lm -Wl,--stack=134217728
     sandboxArgv: --use-logon
   match:
-    s1bin: match/{task.mdocid}/{task.rid}/{task.s1docid}.exe
-    s2bin: match/{task.mdocid}/{task.rid}/{task.s2docid}.exe
-    map: match/{task.mdocid}/{task.rid}/map.json
-    config: match/{task.mdocid}/{task.rid}/config.json
-    command: node ../fun-judge/.dist/bootstrap.js --config {matchConfig.config}
+    s1bin: '{runtimeDir}/match/{task.mdocid}/{task.rid}/{task.s1docid}.exe'
+    s2bin: '{runtimeDir}/match/{task.mdocid}/{task.rid}/{task.s2docid}.exe'
+    map: '{runtimeDir}/match/{task.mdocid}/{task.rid}/map.json'
+    config: '{runtimeDir}/match/{task.mdocid}/{task.rid}/config.json'
+    summary: '{runtimeDir}/match/{task.mdocid}/{task.rid}/summary.json'
+    clean:
+      - '{runtimeDir}/match/{task.mdocid}/{task.rid}/**'
+    command: node ../fun-judge/.dist/bootstrap.js --config "{matchConfig.config}"
   mq:
     vhosts:
       /:
