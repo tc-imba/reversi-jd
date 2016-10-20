@@ -111,15 +111,16 @@ api.roundError = (mid, rid, text) => {
   });
 };
 
-api.roundComplete = (mid, rid, exitCode, logBuffer) => {
+api.roundComplete = (mid, rid, exitCode, summary, logBuffer) => {
   const body = {
     mid,
     rid,
     exitCode: String(exitCode),
+    summary,
     log: {
       value: logBuffer,
       options: {
-        filename: rid,
+        filename: `${rid}_log.txt`,
         contentType: 'text/plain',
       },
     },

@@ -1,6 +1,7 @@
 import format from 'string-format';
 import _ from 'lodash';
 import shellQuote from 'shell-quote';
+import os from 'os';
 
 const utils = {};
 
@@ -13,6 +14,26 @@ utils.formatDeep = (value, fmt) => _.cloneDeepWith(value, val => {
 utils.parseArgs = (args) => {
   const escape = (process.platform === 'win32') ? '^' : '\\';
   return shellQuote.parse(args, {}, { escape });
+};
+
+const availableCores = [];
+for (var i = 1; i <= os.cpus().length; ++i) availableCores.push(i);
+
+utils.captureCore = () => {
+  if (availableCores.length === 0) {
+    return null;
+  }
+  return availableCores.shift();
+};
+
+utils.releaseCore = (coreIndex1) => {
+  if (availableCores.indexOf(coreIndex1) !== -1) {
+    return;
+  }
+  if (!coreIndex1) {
+    return;
+  }
+  availableCores.push(coreIndex1);
 };
 
 export default utils;

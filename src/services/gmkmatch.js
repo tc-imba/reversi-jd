@@ -23,7 +23,11 @@ export default async (mq, logger) => {
   const runtimeDir = path.resolve(DI.config.runtimeDirectory);
   await fsp.ensureDir(runtimeDir);
 
-  async function handleJudgeTask(task) {
+  // Self running at Core 1
+  utils.captureCore();
+
+  async function handleJudgeTask(task, affinityCores) {
+
     try {
       await api.roundBegin(task.mdocid, task.rid);
 
@@ -57,21 +61,23 @@ export default async (mq, logger) => {
         'sandbox': DI.config.sandbox === null ? null : path.resolve(DI.config.sandbox),
         'summary': matchConfig.summary,
         'board': matchConfig.map,
+        'brain0.core': affinityCores[0],
         'brain0.field': task.u1field,
         'brain0.bin': matchConfig.s1bin,
         'brain0.moveTimeout': task.rules.moveTimeout,
         'brain0.roundTimeout': task.rules.roundTimeout,
         'brain0.memoryLimit': task.rules.memoryLimit,
+        'brain1.core': affinityCores[1],
         'brain1.bin': matchConfig.s2bin,
         'brain1.moveTimeout': task.rules.moveTimeout,
         'brain1.roundTimeout': task.rules.roundTimeout,
         'brain1.memoryLimit': task.rules.memoryLimit,
-        'width': task.rules.width,
-        'height': task.rules.height,
-        'winningStones': task.rules.winningStones,
+        'round.width': task.rules.width,
+        'round.height': task.rules.height,
+        'round.winningStones': task.rules.winningStones,
       }, null, 2));
 
-      let stdout, stderr, code = 0;
+      let stdout, stderr, code = 0, summary = '';
       try {
         const execResult = await execFile(matchConfig.command, utils.parseArgs(matchConfig.args), {
           cwd: runtimeDir,
@@ -89,8 +95,10 @@ export default async (mq, logger) => {
         throw new Error(`Unexpected judge exit code ${code}. ${stderr}`);
       }
 
+      summary = (await fsp.readFile(matchConfig.summary)).toString();
+
       logger.info('Match %s (round %s) complete', task.mdocid, task.rid);
-      await api.roundComplete(task.mdocid, task.rid, code, stdout);
+      await api.roundComplete(task.mdocid, task.rid, code, summary, stdout);
 
       try {
         await del(matchConfig.clean, { force: true });
@@ -109,11 +117,13 @@ export default async (mq, logger) => {
     subscription.on('error', err => logger.error(err));
     subscription.on('message', async (message, task, ackOrNack) => {
       logger.info('Match %s (round %s): %s', task.mdocid, task.rid, JSON.stringify(task));
+      const affinityCores = [utils.captureCore(), utils.captureCore()];
       try {
-        await handleJudgeTask(task);
+        await handleJudgeTask(task, affinityCores);
       } catch (e) {
         logger.error(e);
       }
+      affinityCores.forEach(coreIndex => utils.releaseCore(coreIndex));
       ackOrNack();
     });
   });
