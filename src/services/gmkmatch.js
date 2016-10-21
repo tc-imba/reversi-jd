@@ -33,9 +33,9 @@ export default async (mq, logger) => {
 
       const matchConfig = { ...DI.config.match };
       const formatArgv = { runtimeDir, matchConfig, task };
-      
+
       // ensure order
-      for (const key of ['s1bin', 's2bin', 'map', 'config', 'summary', 'clean', 'command', 'args']) {
+      for (const key of ['s1bin', 's2bin', 'opening', 'config', 'summary', 'clean', 'command', 'args']) {
         matchConfig[key] = utils.formatDeep(matchConfig[key], formatArgv);
       }
 
@@ -53,14 +53,14 @@ export default async (mq, logger) => {
         { mode: 0o755 }
       );
 
-      await fsp.ensureDir(path.dirname(matchConfig.map));
-      await fsp.writeFile(matchConfig.map, task.map);
+      await fsp.ensureDir(path.dirname(matchConfig.opening));
+      await fsp.writeFile(matchConfig.opening, task.opening);
 
       await fsp.ensureDir(path.dirname(matchConfig.config));
       await fsp.writeFile(matchConfig.config, JSON.stringify({
         'sandbox': DI.config.sandbox === null ? null : path.resolve(DI.config.sandbox),
         'summary': matchConfig.summary,
-        'board': matchConfig.map,
+        'board': matchConfig.opening,
         'brain0.core': affinityCores[0],
         'brain0.field': task.u1field,
         'brain0.bin': matchConfig.s1bin,

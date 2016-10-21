@@ -19,7 +19,7 @@ base:
   match:
     s1bin: '{runtimeDir}/match/{task.mdocid}/{task.rid}/{task.s1docid}.exe'
     s2bin: '{runtimeDir}/match/{task.mdocid}/{task.rid}/{task.s2docid}.exe'
-    map: '{runtimeDir}/match/{task.mdocid}/{task.rid}/map.json'
+    opening: '{runtimeDir}/match/{task.mdocid}/{task.rid}/opening.json'
     config: '{runtimeDir}/match/{task.mdocid}/{task.rid}/config.json'
     summary: '{runtimeDir}/match/{task.mdocid}/{task.rid}/summary.json'
     clean:
