@@ -42,4 +42,4 @@ base:
             prefetch: 1
           judge:
             queue: gomoku_judge
-            prefetch: 4  # set to number of CPUs / 2 - 1
+            prefetch: 1  # set to number of floor((CPUs - 1) / 2)
