@@ -4,7 +4,7 @@ base:
     credential:
       username: foo
       password: bar
-  sandbox: ../windows-container/Debug/winc.exe
+  sandbox: ../windows-container/Release/winc.exe
   runtimeDirectory: ../runtime
   compile:
     timeout: 20000
@@ -39,7 +39,7 @@ base:
         subscriptions:
           compile:
             queue: gomoku_compile
-            prefetch: 1
+            prefetch: 1  # don't modify it! only one submission at a time!
           judge:
             queue: gomoku_judge
             prefetch: 1  # set to number of floor((CPUs - 1) / 2)
