@@ -1,5 +1,13 @@
 # Gomoku Judge Daemon
 
+## Prerequisites
+
+Git
+
+Node.js >= 6.0
+
+TDM-GCC
+
 ## Windows Sandbox
 
 Everything is running inside a sandbox in low IL. You need to set IL of the runtime directory so that it can be read or written by sandboxed applications.
@@ -7,8 +15,6 @@ Everything is running inside a sandbox in low IL. You need to set IL of the runt
 ```batch
 icacls "DIRECTORY_OF_RUNTIME" /setintegritylevel (OI)(CI)low /t /c
 ```
-
-TODO: Clean legacy files so that sandboxed applications cannot access other files.
 
 ## Compiler
 
@@ -23,10 +29,3 @@ A workaround:
 ```batch
 icacls "%USERPROFILE%\AppData\Local\Temp" /setintegritylevel (OI)(CI)low /t /c
 ```
-
-## Match Runner
-
-### CPU Affinity
-
-TODO
-
