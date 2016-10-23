@@ -25,7 +25,16 @@ export default async (mq, logger) => {
 
   async function handleCompileTask(task) {
     try {
-      const submission = await api.compileBegin(task.sdocid, task.token);
+      let submission;
+      try {
+        submission = await api.compileBegin(task.sdocid, task.token);
+      } catch (err) {
+        if (err instanceof api.APIUserError) {
+          logger.info('Ignored task %s: %s', task.sdocid, err.message);
+          return;
+        }
+        throw err;
+      }
       const compileConfig = { ...DI.config.compile };
       const formatArgv = { runtimeDir, compileConfig, submission };
 

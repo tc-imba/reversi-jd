@@ -27,9 +27,16 @@ export default async (mq, logger) => {
   utils.captureCore();
 
   async function handleJudgeTask(task, affinityCores) {
-
     try {
-      await api.roundBegin(task.mdocid, task.rid);
+      try {
+        await api.roundBegin(task.mdocid, task.rid);
+      } catch (err) {
+        if (err instanceof api.APIUserError) {
+          logger.info('Ignored match %s (round %s): %s', task.mdocid, task.rid, err.message);
+          return;
+        }
+        throw err;
+      }
 
       const matchConfig = { ...DI.config.match };
       const formatArgv = { runtimeDir, matchConfig, task };

@@ -1,6 +1,34 @@
 import rp from 'request-promise-native';
+import ExtendableError from 'es6-error';
 
 const api = {};
+
+class APIRequestError extends ExtendableError {}
+class APIError extends ExtendableError {
+  constructor(resp) {
+    let body = resp.body;
+    if (body instanceof Buffer) {
+      try {
+        body = JSON.parse(body.toString());
+      } catch (err) {
+        body = null;
+      }
+    }
+    if (typeof body === 'object' && body.err === true) {
+      super(`(${body.name}) ${body.msg}`);
+    } else {
+      super('Failed to parse API response');
+    }
+    this.statusCode = resp.statusCode;
+  }
+}
+class APIServerError extends APIError {}
+class APIUserError extends APIError {}
+
+api.APIRequestError = APIRequestError;
+api.APIError = APIError;
+api.APIServerError = APIServerError;
+api.APIUserError = APIUserError;
 
 async function requestAsync(actionUrl, options = {}) {
   let resp;
@@ -18,10 +46,17 @@ async function requestAsync(actionUrl, options = {}) {
       },
       ...options,
     });
-    return resp;
   } catch (err) {
-    throw new Error(`Failed to connect to Portal API service: ${err.message}`);
+    throw new APIRequestError(err.message);
   }
+  if (resp.statusCode !== 200) {
+    if (resp.statusCode === 500) {
+      throw new APIServerError(resp);
+    } else {
+      throw new APIUserError(resp);
+    }
+  }
+  return resp;
 }
 
 async function requestJsonAsync(actionUrl, options = {}) {
@@ -30,11 +65,7 @@ async function requestJsonAsync(actionUrl, options = {}) {
     gzip: true,
     ...options,
   });
-  const { body } = resp;
-  if (body.err) {
-    throw new Error(`Portal API request failed: ${body.name}: ${body.msg}`);
-  }
-  return body;
+  return resp.body;
 }
 
 async function requestBinaryAsync(actionUrl, options = {}) {
@@ -42,15 +73,6 @@ async function requestBinaryAsync(actionUrl, options = {}) {
     encoding: null,
     ...options,
   });
-  if (resp.statusCode !== 200) {
-    let body;
-    try {
-      body = JSON.parse(resp.body.toString());
-    } catch (err) {
-      throw new Error('Portal API request failed: Cannot decode error message from server');
-    }
-    throw new Error(`Portal API request failed: ${body.name}: ${body.msg}`);
-  }
   return resp.body;
 }
 
