@@ -8,24 +8,20 @@ base:
   runtimeDirectory: ../runtime
   compile:
     timeout: 20000
-    source: '{runtimeDir}/compile/{submission.user.userName}/{submission._id}.c'
-    target: '{runtimeDir}/compile/{submission.user.userName}/{submission._id}.exe'
-    clean:
-      - '{compileConfig.source}'
-      - '{compileConfig.target}'
+    source: foo.c
+    target: foo.exe
     command: gcc
-    args: -O2 -s -Wall -std=c11 -o "{compileConfig.target}" "{compileConfig.source}" -lm -Wl,--stack=134217728
+    args: -O2 -s -Wall -std=c11 -o foo.exe foo.c -lm -Wl,--stack=134217728
     sandboxArgs: --use-logon
   match:
-    s1bin: '{runtimeDir}/match/{task.mdocid}/{task.rid}/{task.s1docid}.exe'
-    s2bin: '{runtimeDir}/match/{task.mdocid}/{task.rid}/{task.s2docid}.exe'
-    opening: '{runtimeDir}/match/{task.mdocid}/{task.rid}/opening.json'
-    config: '{runtimeDir}/match/{task.mdocid}/{task.rid}/config.json'
-    summary: '{runtimeDir}/match/{task.mdocid}/{task.rid}/summary.json'
-    clean:
-      - '{runtimeDir}/match/{task.mdocid}/{task.rid}/**'
+    s1bin: challenger.exe
+    s2bin: opponent.exe
+    opening: opening.json
+    config: config.json
+    summary: summary.json
     command: node
-    args: ../fun-judge/.dist/bootstrap.js --config "{matchConfig.config}"
+    # relative to the working directory
+    args: ../../../fun-judge/.dist/bootstrap.js --config config.json
   mq:
     vhosts:
       /:

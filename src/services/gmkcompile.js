@@ -4,6 +4,7 @@ import path from 'path';
 import del from 'del';
 import fsp from 'fs-promise';
 import lzma from 'lzma-native';
+import uuid from 'uuid';
 import api from 'libs/api';
 import utils from 'libs/utils';
 
@@ -18,12 +19,12 @@ export default async (mq, logger) => {
     return;
   }
 
-  const runtimeDir = path.resolve(DI.config.runtimeDirectory);
-  await fsp.ensureDir(runtimeDir);
-
   const enableSandbox = DI.config.sandbox !== null;
 
   async function handleCompileTask(task) {
+    const workingDirectory = path.resolve(DI.config.runtimeDirectory, `compile/${uuid.v4()}`);
+    await fsp.ensureDir(workingDirectory);
+
     try {
       let submission;
       try {
@@ -35,16 +36,12 @@ export default async (mq, logger) => {
         }
         throw err;
       }
-      const compileConfig = { ...DI.config.compile };
-      const formatArgv = { runtimeDir, compileConfig, submission };
 
-      // ensure order
-      for (const key of ['source', 'target', 'clean', 'command', 'args']) {
-        compileConfig[key] = utils.formatDeep(compileConfig[key], formatArgv);
+      const compileConfig = { ...DI.config.compile };
+      for (const key of ['source', 'target']) {
+        compileConfig[key] = path.resolve(workingDirectory, compileConfig[key]);
       }
 
-      await fsp.ensureDir(path.dirname(compileConfig.source));
-      await fsp.ensureDir(path.dirname(compileConfig.target));
       await fsp.writeFile(compileConfig.source, submission.code);
 
       let execOptFile, execOptArgs;
@@ -64,7 +61,7 @@ export default async (mq, logger) => {
 
       try {
         const execResult = await execFile(execOptFile, execOptArgs, {
-          cwd: runtimeDir,
+          cwd: workingDirectory,
           timeout: compileConfig.timeout,
           maxBuffer: 1 * 1024 * 1024,
         });
@@ -94,16 +91,15 @@ export default async (mq, logger) => {
 
       logger.info('Compile %s end (success = %s)', task.sdocid, success);
       await api.compileEnd(task.sdocid, task.token, text, success, binaryBuffer);
-
-      try {
-        await del(compileConfig.clean, { force: true });
-      } catch (e) {
-        logger.error(e);
-      }
-
     } catch (err) {
       await api.compileError(task.sdocid, task.token, `System internal error occured when compiling this submission.\n\n${err.stack}`);
       throw err;
+    } finally {
+      try {
+        await del(workingDirectory, { force: true });
+      } catch (e) {
+        logger.error(e);
+      }
     }
   }
 

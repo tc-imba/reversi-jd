@@ -4,6 +4,7 @@ import path from 'path';
 import del from 'del';
 import fsp from 'fs-promise';
 import lzma from 'lzma-native';
+import uuid from 'uuid';
 import api from 'libs/api';
 import utils from 'libs/utils';
 
@@ -20,13 +21,13 @@ export default async (mq, logger) => {
     return;
   }
 
-  const runtimeDir = path.resolve(DI.config.runtimeDirectory);
-  await fsp.ensureDir(runtimeDir);
-
   // Self running at Core 1
   utils.captureCore();
 
   async function handleJudgeTask(task, affinityCores) {
+    const workingDirectory = path.resolve(DI.config.runtimeDirectory, `match/${uuid.v4()}`);
+    await fsp.ensureDir(workingDirectory);
+
     try {
       try {
         await api.roundBegin(task.mdocid, task.rid);
@@ -39,43 +40,33 @@ export default async (mq, logger) => {
       }
 
       const matchConfig = { ...DI.config.match };
-      const formatArgv = { runtimeDir, matchConfig, task };
-
-      // ensure order
-      for (const key of ['s1bin', 's2bin', 'opening', 'config', 'summary', 'clean', 'command', 'args']) {
-        matchConfig[key] = utils.formatDeep(matchConfig[key], formatArgv);
+      for (const key of ['s1bin', 's2bin', 'opening', 'config', 'summary']) {
+        matchConfig[key] = path.resolve(workingDirectory, matchConfig[key]);
       }
 
-      await fsp.ensureDir(path.dirname(matchConfig.s1bin));
       await fsp.writeFile(
         matchConfig.s1bin,
         await lzma.decompress(await api.getSubmissionBinary(task.s1docid), LZMA_DECOMPRESS_OPTIONS),
         { mode: 0o755 }
       );
-
-      await fsp.ensureDir(path.dirname(matchConfig.s2bin));
       await fsp.writeFile(
         matchConfig.s2bin,
         await lzma.decompress(await api.getSubmissionBinary(task.s2docid), LZMA_DECOMPRESS_OPTIONS),
         { mode: 0o755 }
       );
-
-      await fsp.ensureDir(path.dirname(matchConfig.opening));
       await fsp.writeFile(matchConfig.opening, task.opening);
-
-      await fsp.ensureDir(path.dirname(matchConfig.config));
       await fsp.writeFile(matchConfig.config, JSON.stringify({
         'sandbox': DI.config.sandbox === null ? null : path.resolve(DI.config.sandbox),
-        'summary': matchConfig.summary,
-        'board': matchConfig.opening,
+        'summary': DI.config.match.summary,
+        'board': DI.config.match.opening,
         'brain0.core': affinityCores[0],
         'brain0.field': task.u1field,
-        'brain0.bin': matchConfig.s1bin,
+        'brain0.bin': DI.config.match.s1bin,
         'brain0.moveTimeout': task.rules.moveTimeout,
         'brain0.roundTimeout': task.rules.roundTimeout,
         'brain0.memoryLimit': task.rules.memoryLimit,
         'brain1.core': affinityCores[1],
-        'brain1.bin': matchConfig.s2bin,
+        'brain1.bin': DI.config.match.s2bin,
         'brain1.moveTimeout': task.rules.moveTimeout,
         'brain1.roundTimeout': task.rules.roundTimeout,
         'brain1.memoryLimit': task.rules.memoryLimit,
@@ -87,7 +78,7 @@ export default async (mq, logger) => {
       let stdout, stderr, code = 0, summary = '';
       try {
         const execResult = await execFile(matchConfig.command, utils.parseArgs(matchConfig.args), {
-          cwd: runtimeDir,
+          cwd: workingDirectory,
           maxBuffer: 10 * 1024 * 1024,
         });
         stdout = execResult.stdout;
@@ -106,16 +97,15 @@ export default async (mq, logger) => {
 
       logger.info('Match %s (round %s) complete', task.mdocid, task.rid);
       await api.roundComplete(task.mdocid, task.rid, code, summary, stdout);
-
-      try {
-        await del(matchConfig.clean, { force: true });
-      } catch (e) {
-        logger.error(e);
-      }
-
     } catch (err) {
       await api.roundError(task.mdocid, task.rid, `System internal error occured when judging this round.\n\n${err.stack}`);
       throw err;
+    } finally {
+      try {
+        await del(workingDirectory, { force: true });
+      } catch (e) {
+        logger.error(e);
+      }
     }
   }
 
