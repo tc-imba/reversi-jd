@@ -14,8 +14,8 @@ base:
     args: -O2 -s -Wall -std=c11 -o foo.exe foo.c -lm -Wl,--stack=134217728
     sandboxArgs: --use-logon
   match:
-    s1bin: challenger.exe
-    s2bin: opponent.exe
+    s1bin: ./challenger.exe
+    s2bin: ./opponent.exe
     opening: opening.json
     config: config.json
     summary: summary.json
