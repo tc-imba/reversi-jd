@@ -4,7 +4,9 @@ base:
     credential:
       username: foo
       password: bar
+  # relative to current dir
   sandbox: ../windows-container/Release/winc.exe
+  # relative to current dir
   runtimeDirectory: ../runtime
   compile:
     timeout: 20000
