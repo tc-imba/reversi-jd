@@ -1,5 +1,6 @@
 import { argv } from 'yargs';
 import { execFile } from 'child-process-promise';
+import AsyncCache from 'async-cache';
 import path from 'path';
 import del from 'del';
 import fsp from 'fs-promise';
@@ -24,6 +25,52 @@ export default async (mq, logger) => {
   // Self running at Core 1
   utils.captureCore();
 
+  // Initialize binary buffer directory. At runtime, the directory must not be cleared.
+  const bufferDirectory = path.resolve(DI.config.runtimeDirectory, 'match_bin_buffer');
+  await fsp.ensureDir(bufferDirectory);
+
+  async function loadBinaryCache(udocid, sdocid) {
+    const binPath = path.join(bufferDirectory, `${udocid}/${sdocid}.exe`);
+    await fsp.ensureDir(path.dirname(binPath));
+    try {
+      await fsp.access(binPath);
+      return binPath;
+    } catch (ignore) {
+      // file does not exist, go on
+    }
+    const content = await lzma.decompress(await api.getSubmissionBinary(sdocid), LZMA_DECOMPRESS_OPTIONS);
+    await fsp.writeFile(binPath, content, { mode: 0o755 });
+    return binPath;
+  }
+
+  const _binaryCache = new AsyncCache({
+    max: 500,
+    maxAge: 24 * 60 * 60 * 1000,
+    load: (key, callback) => {
+      const [udocid, sdocid] = key.split(':');
+      loadBinaryCache(udocid, sdocid)
+        .then(v => callback(null, v))
+        .catch(err => callback(err));
+    },
+  });
+
+  function getBinaryPath(udocid, sdocid) {
+    return new Promise((resolve, reject) => {
+      _binaryCache.get(`${udocid}:${sdocid}`, (err, value) => {
+        if (err) {
+          reject(err);
+          return;
+        }
+        resolve(value);
+      });
+    });
+  }
+
+  async function getAndCopyBinary(udocid, sdocid, destPath) {
+    const binPath = await getBinaryPath(udocid, sdocid);
+    await fsp.copy(binPath, destPath);
+  }
+
   async function handleJudgeTask(task, affinityCores) {
     const workingDirectory = path.resolve(DI.config.runtimeDirectory, `match/${uuid.v4()}`);
     await fsp.ensureDir(workingDirectory);
@@ -44,16 +91,9 @@ export default async (mq, logger) => {
         matchConfig[key] = path.resolve(workingDirectory, matchConfig[key]);
       }
 
-      await fsp.writeFile(
-        matchConfig.s1bin,
-        await lzma.decompress(await api.getSubmissionBinary(task.s1docid), LZMA_DECOMPRESS_OPTIONS),
-        { mode: 0o755 }
-      );
-      await fsp.writeFile(
-        matchConfig.s2bin,
-        await lzma.decompress(await api.getSubmissionBinary(task.s2docid), LZMA_DECOMPRESS_OPTIONS),
-        { mode: 0o755 }
-      );
+      await getAndCopyBinary(task.u1docid, task.s1docid, matchConfig.s1bin);
+      await getAndCopyBinary(task.u2docid, task.s2docid, matchConfig.s2bin);
+
       await fsp.writeFile(matchConfig.opening, task.opening);
       await fsp.writeFile(matchConfig.config, JSON.stringify({
         'sandbox': DI.config.sandbox === null ? null : path.resolve(DI.config.sandbox),
