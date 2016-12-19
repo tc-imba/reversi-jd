@@ -18,7 +18,7 @@ global.__projectRoot = path.join(__dirname, '..');
     return;
   }
 
-  if (argv.role !== 'compile' && argv.role !== 'match') {
+  if (argv.role !== 'compile' && argv.role !== 'match' && argv.role !== 'compileTest') {
     console.error('Please specify --role');
     process.exit(1);
     return;

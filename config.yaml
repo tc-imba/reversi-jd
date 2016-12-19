@@ -9,12 +9,56 @@ base:
   # relative to current dir
   runtimeDirectory: ../runtime
   compile:
-    timeout: 20000
-    source: foo.c
-    target: foo.exe
-    command: gcc
-    args: -O2 -s -Wall -std=c11 -o foo.exe foo.c -lm -Wl,--stack=134217728
-    sandboxArgs: --use-logon
+    # WARN: config will be MERGED so that this section is tricky in `config.xxx.yaml`
+    _base:
+      timeout: 20000
+      source: foo.c
+      target: foo.exe
+      sandboxArgs: --use-logon
+    _vcenv:
+      env:
+        INCLUDE: C:\Program Files (x86)\Microsoft Visual Studio 14.0\VC\INCLUDE;C:\Program Files (x86)\Microsoft Visual Studio 14.0\VC\ATLMFC\INCLUDE;C:\Program Files (x86)\Windows Kits\10\include\10.0.10150.0\ucrt;C:\Program Files (x86)\Windows Kits\NETFXSDK\4.6\include\um;C:\Program Files (x86)\Windows Kits\8.1\include\shared;C:\Program Files (x86)\Windows Kits\8.1\include\um;C:\Program Files (x86)\Windows Kits\8.1\include\winrt;
+        LIB: C:\Program Files (x86)\Microsoft Visual Studio 14.0\VC\LIB;C:\Program Files (x86)\Microsoft Visual Studio 14.0\VC\ATLMFC\LIB;C:\Program Files (x86)\Windows Kits\10\lib\10.0.10150.0\ucrt\x86;C:\Program Files (x86)\Windows Kits\NETFXSDK\4.6\lib\um\x86;C:\Program Files (x86)\Windows Kits\8.1\lib\winv6.3\um\x86;
+        LIBPATH: C:\Program Files (x86)\Microsoft Visual Studio 14.0\VC\LIB;C:\Program Files (x86)\Microsoft Visual Studio 14.0\VC\ATLMFC\LIB;References\CommonConfiguration\Neutral;\Microsoft.VCLibs\14.0\References\CommonConfiguration\neutral;
+        PATH: C:\Program Files (x86)\MSBuild\14.0\bin;C:\Program Files (x86)\Microsoft Visual Studio 14.0\Common7\IDE\;C:\Program Files (x86)\Microsoft Visual Studio 14.0\VC\BIN;C:\Program Files (x86)\Microsoft Visual Studio 14.0\Common7\Tools;C:\Program Files (x86)\Microsoft Visual Studio 14.0\VC\VCPackages;C:\Program Files (x86)\Windows Kits\8.1\bin\x86;C:\Windows\system32;C:\Windows
+    _gcc:
+      command: gcc
+      args: -O2 -s -Wall -o foo.exe foo.c -lm -Wl,--stack=134217728
+    _gcc11:
+      command: gcc
+      args: -O2 -s -Wall -o foo.exe foo.c -lm -Wl,--stack=134217728 -std=c11
+    _clang11:
+      command: clang
+      args: -O2 -Wall -o foo.exe foo.c -std=c11 -target i386-pc-win32
+    _vc:
+      command: cl
+      args: /GS /GL /analyze- /W3 /Gy /Zc:wchar_t /Gm- /O2 /Zc:inline /fp:precise /D "WIN32" /D "NDEBUG" /D "_CONSOLE" /WX- /Zc:forScope /Gd /Oy- /Oi /MD /EHsc /nologo foo.c
+    gcc51c11:
+      extend: [_base, _gcc11]
+      env:
+        PATH: C:\TDM-GCC-32-5.1\bin;C:\Windows\system32;C:\Windows
+    gcc49:
+      extend: [_base, _gcc]
+      env:
+        PATH: C:\TDM-GCC-32-4.9\bin;C:\Windows\system32;C:\Windows
+    gcc49c11:
+      extend: [_base, _gcc11]
+      env:
+        PATH: C:\TDM-GCC-32-4.9\bin;C:\Windows\system32;C:\Windows
+    msvc2015:
+      extend: [_base, _vcenv, _vc]
+    clang37:
+      extend: [_base, _vcenv, _clang11]
+      env:
+        PATH: C:\Program Files (x86)\LLVM3.7\bin;C:\Windows\system32;C:\Windows
+    clang38:
+      extend: [_base, _vcenv, _clang11]
+      env:
+        PATH: C:\Program Files (x86)\LLVM3.8\bin;C:\Windows\system32;C:\Windows
+    clang39:
+      extend: [_base, _vcenv, _clang11]
+      env:
+        PATH: C:\Program Files (x86)\LLVM3.9\bin;C:\Windows\system32;C:\Windows
   match:
     s1bin: ./challenger.exe
     s2bin: ./opponent.exe

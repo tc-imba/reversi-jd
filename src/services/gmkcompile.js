@@ -1,12 +1,12 @@
 import { argv } from 'yargs';
-import { execFile } from 'child-process-promise';
 import path from 'path';
 import del from 'del';
 import fsp from 'fs-promise';
-import lzma from 'lzma-native';
 import uuid from 'uuid';
+import lzma from 'lzma-native';
+
 import api from 'libs/api';
-import utils from 'libs/utils';
+import compile from 'libs/compile';
 
 const LZMA_COMPRESS_OPTIONS = {
   preset: 4,
@@ -19,7 +19,7 @@ export default async (mq, logger) => {
     return;
   }
 
-  const enableSandbox = DI.config.sandbox !== null;
+  logger.debug('Compiler settings: %s', JSON.stringify(compile.settings, null, 2));
 
   async function handleCompileTask(task) {
     const workingDirectory = path.resolve(DI.config.runtimeDirectory, `compile/${uuid.v4()}`);
@@ -37,60 +37,17 @@ export default async (mq, logger) => {
         throw err;
       }
 
-      const compileConfig = { ...DI.config.compile };
-      for (const key of ['source', 'target']) {
-        compileConfig[key] = path.resolve(workingDirectory, compileConfig[key]);
-      }
-
-      await fsp.writeFile(compileConfig.source, submission.code);
-
-      let execOptFile, execOptArgs;
-      if (enableSandbox) {
-        execOptFile = path.resolve(DI.config.sandbox);
-        execOptArgs = [
-          ...utils.parseArgs(compileConfig.sandboxArgs),
-          compileConfig.command,
-          ...utils.parseArgs(compileConfig.args),
-        ];
-      } else {
-        execOptFile = compileConfig.command;
-        execOptArgs = utils.parseArgs(compileConfig.args);
-      }
-
-      let success, stdout, stderr;
-
-      try {
-        const execResult = await execFile(execOptFile, execOptArgs, {
-          cwd: workingDirectory,
-          timeout: compileConfig.timeout,
-          maxBuffer: 1 * 1024 * 1024,
-        });
-        stdout = execResult.stdout;
-        stderr = execResult.stderr;
-        success = true;
-      } catch (err) {
-        stdout = err.stdout;
-        stderr = err.message;
-        success = false;
-      }
-      let text = (stdout + '\n' + stderr).trim();
-      if (text.length > task.limits.sizeOfText) {
-        text = text.substr(0, task.limits.sizeOfText) + '...';
-      }
-
-      let binaryBuffer = null;
-      if (success) {
-        const stat = await fsp.stat(compileConfig.target);
-        if (stat.size > task.limits.sizeOfBin) {
-          text = 'Compile succeeded but binary limit exceeded';
-          success = false;
-        } else {
-          binaryBuffer = await lzma.compress(await fsp.readFile(compileConfig.target), LZMA_COMPRESS_OPTIONS);
-        }
-      }
+      const { text, success, binaryBuffer } = await compile.doCompile({
+        workingDirectory,
+        code: submission.code,
+        compiler: submission.compiler,
+        limits: task.limits,
+      });
 
       logger.info('Compile %s end (success = %s)', task.sdocid, success);
-      await api.compileEnd(task.sdocid, task.token, text, success, binaryBuffer);
+
+      let lzmaBuffer = await lzma.compress(binaryBuffer, LZMA_COMPRESS_OPTIONS);
+      await api.compileEnd(task.sdocid, task.token, text, success, lzmaBuffer);
     } catch (err) {
       await api.compileError(task.sdocid, task.token, `System internal error occured when compiling this submission.\n\n${err.stack}`);
       throw err;

@@ -20,3 +20,8 @@ gmkmatch:
   inject:
     - mq
     - logger
+
+compileTest:
+  path: compileTest
+  inject:
+    - logger

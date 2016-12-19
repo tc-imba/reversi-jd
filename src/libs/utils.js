@@ -2,8 +2,18 @@ import format from 'string-format';
 import _ from 'lodash';
 import shellQuote from 'shell-quote';
 import os from 'os';
+import iconv from 'iconv-lite';
+import jschardet from 'jschardet';
 
 const utils = {};
+
+utils.iconv = (buffer) => {
+  const encoding = jschardet.detect(buffer).encoding;
+  if (!encoding) {
+    return buffer.toString();
+  }
+  return iconv.decode(buffer, encoding);
+};
 
 utils.formatDeep = (value, fmt) => _.cloneDeepWith(value, val => {
   if (typeof val === 'string') {
