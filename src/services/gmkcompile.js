@@ -46,7 +46,11 @@ export default async (mq, logger) => {
 
       logger.info('Compile %s end (success = %s)', task.sdocid, success);
 
-      let lzmaBuffer = await lzma.compress(binaryBuffer, LZMA_COMPRESS_OPTIONS);
+      let lzmaBuffer = null;
+      if (success) {
+        lzmaBuffer = await lzma.compress(binaryBuffer, LZMA_COMPRESS_OPTIONS);
+      }
+
       await api.compileEnd(task.sdocid, task.token, text, success, lzmaBuffer);
     } catch (err) {
       await api.compileError(task.sdocid, task.token, `System internal error occured when compiling this submission.\n\n${err.stack}`);
