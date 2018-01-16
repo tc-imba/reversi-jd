@@ -1,0 +1,8 @@
+# for PM2
+apps:
+  - script: .dist/jd.js
+    args: --role compile
+    name: compile
+  - script: .dist/jd.js
+    args: --role match
+    name: match

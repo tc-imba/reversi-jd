@@ -1,6 +1,6 @@
 base:
   api:
-    url: http://127.0.0.1:3080
+    url: http://127.0.0.1:3000
     credential:
       username: foo
       password: bar
