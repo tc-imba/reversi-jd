@@ -27,7 +27,7 @@ gulp.task('jd', () => {
     .pipe(gulp.dest('./.dist'));
 });
 
-gulp.task('jd:develop', ['jd'], () => {
+gulp.task('jd:develop', gulp.series('jd', () => {
   nodemon({
     script: '.dist/jd.js',
     args: ['--role', argv.role],
@@ -39,6 +39,6 @@ gulp.task('jd:develop', ['jd'], () => {
       'DEBUG': 'rascal:Vhost',
     },
   });
-});
+}));
 
-gulp.task('default', ['jd:develop']);
+gulp.task('default', gulp.series('jd:develop'));

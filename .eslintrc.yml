@@ -19,7 +19,6 @@ globals:
   __projectRoot: true
   DI: true
 rules:
-  babel/object-shorthand: 1
   indent:
     - 2
     - 2
