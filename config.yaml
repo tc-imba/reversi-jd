@@ -64,7 +64,16 @@ base:
     clang++17:
       extend: [_base, _clang++]
       args: -O3 -Wall -o main main.cpp -std=c++17
-
+    py2:
+      extend: [_base]
+      command: sh
+      source: main.py
+      args: -c 'cp main.py main && echo >> main && sed -i 1i#!/usr/bin/python2 main && chmod +x main'
+    py3:
+      extend: [_base]
+      command: sh
+      source: main.py
+      args: -c 'cp main.py main && echo >> main && sed -i 1i#!/usr/bin/python3 main && chmod +x main'
   match:
     s1bin: ./challenger
     s2bin: ./opponent
