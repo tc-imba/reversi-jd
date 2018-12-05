@@ -96,12 +96,12 @@ base:
           user: guest
           password: guest
         queues:
-          - gomoku_compile
-          - gomoku_judge
+          - reversi_compile
+          - reversi_judge
         subscriptions:
           compile:
-            queue: gomoku_compile
+            queue: reversi_compile
             prefetch: 1  # don't modify it! only one submission at a time!
           judge:
-            queue: gomoku_judge
+            queue: reversi_judge
             prefetch: 1  # set to number of floor((CPUs - 1) / 2)
