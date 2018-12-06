@@ -1,6 +1,6 @@
 base:
   api:
-    url: http://127.0.0.1:3000
+    url: http://127.0.0.1:3100
     credential:
       username: foo
       password: bar
@@ -87,7 +87,7 @@ base:
     summary: summary.json
     command: node
     # relative to the working directory
-    args: ../../../fun-judge/.dist/bootstrap.js --config config.json
+    args: ../../../reversi-judge/.dist/bootstrap.js --config config.json
   mq:
     vhosts:
       /:

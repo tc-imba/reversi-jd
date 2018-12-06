@@ -2,7 +2,7 @@
 apps:
   - script: .dist/jd.js
     args: --role compile
-    name: compile
+    name: reversi-compile
   - script: .dist/jd.js
     args: --role match
-    name: match
+    name: reversi-match
